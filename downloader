@@ -1,0 +1,57 @@
+#!/bin/bash
+
+readarray -t site <<< $(curl -Ls "https://www.dropbox.com/s/$WEBSITE_PASSWORD/site.html?dl=0")
+mkdir -p database
+
+locate () {
+  parent=$(echo "${site[i]}" | grep -Po '(?<=child-of-eflpTable00sub)[0-9]+' | head -n 1)
+  while [[ ! "$parent" == "${IDpath[-1]}" ]]; do
+    unset IDpath[-1]
+  done
+}
+
+folderActions () {
+  name=$(grep -Po '(?<=> ).+(?=<)' <<< "${site[i+1]}")
+  ID=$(grep -Po '(?<=id="eflpTable00sub)[0-9]+' <<< "${site[i]}")
+  names+=("${name// /-}")
+  IDpath+=("$ID")
+  for ((j=0; j < "${#IDpath[@]}"; j++)); do
+    toCreate+="${names[${IDpath[j]}]}/"
+  done
+  mkdir -p "database/$toCreate"
+  unset toCreate
+}
+
+end=$(("${#site[@]}"-197))
+for ((i=647; i < "$end"; i++)); do
+  if [[ "${site[i]}" =~ 'eflpTable00sub' ]]; then
+    # File
+    if [[ "${site[i]}" =~ 'ffffff;">' ]]; then
+      locate
+      name=$(grep -Po '(?<=blank">).+(?=</a><a class="eflpro_download")' <<< "${site[i+1]}")
+      link=$(echo eric.bilinski.fr$(egrep -o '/index.php/component/easyfolderlistingpro/\?view=download&format=raw&data=[a-zA-Z0-9_-]+' <<< "${site[i+1]}"))
+      for ((j=0; j < "${#IDpath[@]}"; j++)); do
+        toCreate+="${names[${IDpath[j]}]}/"
+      done
+      toCreate+="${name// /_}"
+      if [[ -f "database/$toCreate" ]]; then
+        echo "S | $toCreate" | cut -c -$COLUMNS
+      elif [[ ! -d "database/$toCreate" ]]; then
+        echo "D | $toCreate" | cut -c -$COLUMNS
+        wget "$link" -q -O "database/$toCreate.pdf" &
+        while (( $(ps | grep wget | wc -l) > 30 )); do
+          sleep 1
+        done
+      fi
+      unset toCreate
+    # New folder
+    elif [[ "${site[i]}" =~ 'child-of-eflpTable00sub' ]]; then
+      locate
+      folderActions
+    # Root folder
+    else
+      unset IDpath
+      folderActions
+    fi
+  fi
+done
