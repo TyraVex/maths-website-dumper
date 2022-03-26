@@ -31,6 +31,12 @@ folderActions () {
   unset toCreate
 }
 
+NC='\e[0m'
+red='\e[31m'
+green='\e[32m'
+yellow='\e[33m'
+blue='\e[34m'
+
 mkdir -p database
 end=$(("${#site[@]}"-197))
 for ((i=647; i < "$end"; i++)); do
@@ -44,10 +50,10 @@ for ((i=647; i < "$end"; i++)); do
         toCreate+="${names[${IDpath[j]}]}/"
       done
       toCreate+="${name// /_}"
-      if [[ -f "database/$toCreate" ]]; then
-        echo "S | $toCreate" | cut -c -$COLUMNS
+      if [[ -f "database/$toCreate.pdf" ]]; then
+        echo -e "\e[31mx | $toCreate\e[0m" | cut -c -$COLUMNS
       elif [[ ! -d "database/$toCreate" ]]; then
-        echo "D | $toCreate" | cut -c -$COLUMNS
+        echo -e "\e[32m↓ | $toCreate\e[0m" | cut -c -$COLUMNS
         wget "$link" -q -O "database/$toCreate.pdf" &
         while (( $(ps | grep wget | wc -l) > 30 )); do
           sleep 1
