@@ -2,24 +2,42 @@
 
 unset site
 source ~/.bashrc
-read -p "pass : " pass
-if [[ -n "$pass" ]]; then
-  echo using input
-  WEBSITE_PASS="$pass"
+rm log
+
+if [[ -f site.html ]]; then
+  readarray -t site < site.html
+else
+  read -p "pass : " pass
+  if [[ -n "$pass" ]]; then
+    echo using input
+    WEBSITE_PASS="$pass"
+  fi
+  readarray -t site <<< $(curl -#L "go.ly/$WEBSITE_PASS")
 fi
-readarray -t site <<< $(curl -#L "go.ly/$WEBSITE_PASS")
 if [[ ! "${site[-5]}" =~ 'aW5kZXgucGhwP0l0ZW1pZD0yNzM=' ]]; then
   echo "Error while fetching website"
+  exit
 fi
 
+filesDownloaded=0
+mkdir -p database
+end=$(("${#site[@]}"-197))
+
+
 locate () {
+
+  echo -n "$parent | " >> log
   parent=$(echo "${site[i]}" | grep -Po '(?<=child-of-eflpTable00sub)[0-9]+' | head -n 1)
+  echo "$parent" >> log
   while [[ ! "$parent" == "${IDpath[-1]}" ]]; do
     unset IDpath[-1]
   done
+
 }
 
+
 folderActions () {
+
   name=$(grep -Po '(?<=> ).+(?=<)' <<< "${site[i+1]}")
   ID=$(grep -Po '(?<=id="eflpTable00sub)[0-9]+' <<< "${site[i]}")
   names+=("${name// /-}")
@@ -29,14 +47,18 @@ folderActions () {
   done
   mkdir -p "database/$toCreate"
   unset toCreate
+
 }
 
-mkdir -p database
-end=$(("${#site[@]}"-197))
+
 for ((i=647; i < "$end"; i++)); do
+
   if [[ "${site[i]}" =~ 'eflpTable00sub' ]]; then
+
     # File
     if [[ "${site[i]}" =~ 'ffffff;">' ]]; then
+      parent="${site[i]:35:3}"
+      parent="${parent//[^0-9]/}"
       locate
       name=$(grep -Po '(?<=blank">).+(?=</a><a class="eflpro_download")' <<< "${site[i+1]}")
       link=$(echo eric.bilinski.fr$(egrep -o '/index.php/component/easyfolderlistingpro/\?view=download&format=raw&data=[a-zA-Z0-9_-]+' <<< "${site[i+1]}"))
@@ -46,24 +68,32 @@ for ((i=647; i < "$end"; i++)); do
       toCreate+="${name// /_}"
       if [[ -f "database/$toCreate.pdf" ]]; then
         echo -e "\e[31mx | $toCreate\e[0m" | cut -c -$COLUMNS
+        echo "$toCreate" >> log
       elif [[ ! -d "database/$toCreate" ]]; then
         echo -e "\e[32m↓ | $toCreate\e[0m" | cut -c -$COLUMNS
-        wget "$link" -q -O "database/$toCreate.pdf" &
-        while (( $(ps | grep wget | wc -l) > 30 )); do
-          sleep 1
-        done
+#        wget "$link" -bq -O "database/$toCreate.pdf" >/dev/null
+        ((filesDownloaded++))
       fi
       unset toCreate
+
+
     # New folder
     elif [[ "${site[i]}" =~ 'child-of-eflpTable00sub' ]]; then
+      parent="${site[i]:65:3}"
+      parent="${parent//[^0-9]/}"
       locate
       folderActions
+
     # Root folder
     else
       unset IDpath
       folderActions
     fi
+
   fi
+
 done
+
 echo Finishing threads...
 wait
+echo "Downloaded $filesDownloaded files"
