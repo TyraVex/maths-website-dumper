@@ -31,12 +31,6 @@ folderActions () {
   unset toCreate
 }
 
-NC='\e[0m'
-red='\e[31m'
-green='\e[32m'
-yellow='\e[33m'
-blue='\e[34m'
-
 mkdir -p database
 end=$(("${#site[@]}"-197))
 for ((i=647; i < "$end"; i++)); do
