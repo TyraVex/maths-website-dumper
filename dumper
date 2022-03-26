@@ -1,7 +1,16 @@
 #!/bin/bash
 
-readarray -t site <<< $(curl -Ls "https://www.dropbox.com/s/$WEBSITE_PASSWORD/site.html?dl=0")
-mkdir -p database
+unset site
+source ~/.bashrc
+read -p "pass : " pass
+if [[ -n "$pass" ]]; then
+  echo using input
+  WEBSITE_PASS="$pass"
+fi
+readarray -t site <<< $(curl -#L "go.ly/$WEBSITE_PASS")
+if [[ ! "${site[-5]}" =~ 'aW5kZXgucGhwP0l0ZW1pZD0yNzM=' ]]; then
+  echo "Error while fetching website"
+fi
 
 locate () {
   parent=$(echo "${site[i]}" | grep -Po '(?<=child-of-eflpTable00sub)[0-9]+' | head -n 1)
@@ -22,6 +31,7 @@ folderActions () {
   unset toCreate
 }
 
+mkdir -p database
 end=$(("${#site[@]}"-197))
 for ((i=647; i < "$end"; i++)); do
   if [[ "${site[i]}" =~ 'eflpTable00sub' ]]; then
