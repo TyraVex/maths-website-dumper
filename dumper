@@ -65,3 +65,5 @@ for ((i=647; i < "$end"; i++)); do
     fi
   fi
 done
+echo Finishing threads...
+wait
