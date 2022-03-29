@@ -1,4 +1,4 @@
-# A website dumper for a specifc website
+# A website dumper for a specific website
 
 
 ## ONLY PEOPLE THAT HAVE ALREADY ACCESS TO THE CONCERNED WEBSITE CAN HAVE ACCESS TO THIS SCRIPT
