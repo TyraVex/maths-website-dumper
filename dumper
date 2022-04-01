@@ -3,7 +3,7 @@
 echo
 source ~/.keys
 if [[ -z "$WEBSITE_PASS" ]]; then read -p "pass : " WEBSITE_PASS; fi
-readarray -t site <<< $(curl -#L "go.ly/$WEBSITE_PASS")
+readarray -t site <<< $(curl -# 'eric.bilinski.fr/index.php/classes/ts/annales-ts' -H 'Cookie: 6319cb2653680593249bdebaaa628a80='"$WEBSITE_PASS"'')
 if [[ ! "${site[-5]}" =~ 'aW5kZXgucGhwP0l0ZW1pZD0yNzM=' ]]; then echo "Error while fetching website"; exit; fi
 
 updateIDpath() {
