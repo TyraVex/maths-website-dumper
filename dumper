@@ -1,10 +1,96 @@
 #!/bin/bash
 
-echo
-source ~/.keys
-if [[ -z "$WEBSITE_PASS" ]]; then read -p "pass : " WEBSITE_PASS; fi
-readarray -t site <<< $(curl -# 'eric.bilinski.fr/index.php/classes/ts/annales-ts' -H 'Cookie: 6319cb2653680593249bdebaaa628a80='"$WEBSITE_PASS"'')
-if [[ ! "${site[-5]}" =~ 'aW5kZXgucGhwP0l0ZW1pZD0yNzM=' ]]; then echo "Error while fetching website"; exit; fi
+logo() {
+
+  clear
+  unset blank
+  cols=$(tput cols)
+  if (( $cols > 30 )); then
+    for ((i=31; i < "$cols"-1; i+=2)); do blank+=' '; done
+    echo
+    echo
+    echo "$blank   ___"
+    echo "$blank  / _ \__ ____ _  ___  ___ ____"
+    echo "$blank / // / // /  ' \/ _ \/ -_) __/"
+    echo "$blank/____/\_,_/_/_/_/ .__/\__/_/"
+    echo "$blank               /_/By TyraVex"
+    echo
+  fi
+
+}
+
+menu() {
+
+  logo
+  case "$1" in
+    error) echo -e "\e[31mERROR : $2\e[0m";;
+    info) echo -e "\e[33mINFO : $2\e[0m";;
+    silent) echo "$2"
+  esac
+  mkdir -p .data
+  paths=('.data/annales' '.data/exercices' '.data/dns' '.data/photos')
+  urls=(['Annales']='eric.bilinski.fr/index.php/classes/ts/annales-ts' ['Exercixes']='eric.bilinski.fr/index.php/classes/ts/exercices-de-1ere-s-3' ['DNS']='eric.bilinski.fr/index.php/classes/ts/dns-ts' ['Photos']='eric.bilinski.fr/index.php/classes/ts/photos-ts-eric-b')
+  touch .data/credentials "${paths[@]}"
+  if [[ $(cat .data/credentials) =~ [a-z0-9] ]]; then
+    cookie=$(cat .data/credentials)
+  else
+    echo 'No cookies found'; exit
+  fi
+  refresh &
+  unset dashes check
+  cols=$(tput cols)
+  for ((i=11; i < "$cols"-1; i+=2)); do dashes+='-'; done
+  echo -e "\e[34m\n$dashes MAIN MENU $dashes\n\e[0m"
+  for ((i=0; i < "${#urls[@]}"; i++)); do
+    if [[ -n $(cat "${paths[i]}") ]]; then
+      echo -e "\e[32m[$((i+1))] - ${!urls[i]}\e[0m"
+      check=true
+    else
+      echo -e "\e[33m[$((i+1))] - ${!urls[i]}\e[0m"
+    fi
+  done
+  if [[ "$check" == 'true' ]]; then
+    echo -e "\e[36m[l1-5] - Use local data, no auth\e[0m"
+  fi
+  echo -e '\e[32m\n[ø] - All options\e[0m'
+  echo -e "\e[31m[e] - Exit\n\e[0m"
+  read -p "Option : " choice
+  echo
+  unset localData jobs
+  case "$choice" in
+    [0-9])
+      jobs="${urls[choice-1]}";;
+    l[0-9])
+      jobs="${urls[choice-1]}"
+      localData=true;;
+    '')
+      jobs=(${urls[@]});;
+    e)exit;;
+    *)menu 'error' 'Invalid input'
+      return;;
+  esac
+
+}
+
+refresh() {
+
+  for ((i=0; i < "${#urls[@]}"; i++)); do
+    readarray -t annales <<< $(curl -# 'eric.bilinski.fr/index.php/classes/ts/annales-ts' -H 'Cookie: 6319cb2653680593249bdebaaa628a80='"$cookie"'') &
+    readarray -t exercices <<< $(curl -# 'eric.bilinski.fr/index.php/classes/ts/exercices-de-1ere-s-3' -H 'Cookie: 6319cb2653680593249bdebaaa628a80='"$cookie"'') &
+    readarray -t dns <<< $(curl -# 'eric.bilinski.fr/index.php/classes/ts/dns-ts' -H 'Cookie: 6319cb2653680593249bdebaaa628a80='"$cookie"'') &
+    readarray -t photos <<< $(curl -# '' -H 'Cookie: 6319cb2653680593249bdebaaa628a80='"$cookie"'') &
+'eric.bilinski.fr/index.php/classes/ts/dns-ts' ['Photos']='eric.bilinski.fr/index.php/classes/ts/photos-ts-eric-b')
+  done
+  wait
+  for ((i=0; i < "${#urls[@]}"; i++)); do
+#    if [[ "${{urls[i]}}" == 0 ]]; then echo "Error while fetching website"; exit; fi
+    echo "${urls[i]}"
+    echo "${Annales[@]}"
+  done
+  echo "${site[@]}" > "${docs[i]}"
+
+}
+
 
 updateIDpath() {
   parentID="${parentID//[^0-9]/}"
@@ -29,74 +115,85 @@ cleanup() {
   exit
 }
 
-for ((i=647; i < "${#site[@]}"-197; i++)); do
+menu
+for ((i=0; i < "${#jobs[@]}"; i++)); do
 
-  if [[ "${site[i]:2:2}" == 'tr' ]]; then
-    case "${site[i+1]:91:1}" in
-      _) type=.pdf;;
-      g) type=.png;;
-      a) type=.mp4;;
-      .) type=;;
-      *) type=;;
-    esac
-    [[ "${site[i+1]}" =~ '/index.php/component/easyfolderlistingpro/?view=download&format=raw&data='[a-zA-Z0-9_-]* ]] \
-    && links+=("http://eric.bilinski.fr$BASH_REMATCH")
-    [[ "${site[i+1]}" =~ 'k">'.*'</a><a class="eflpr' ]] \
-    && name="${BASH_REMATCH:3:-19}"
-    parentID="${site[i]:35:3}"
-    updateIDpath
-    namePath
-    paths+=("$toCreate$name$type")
-    ((i+=4))
-  elif [[ "${site[i]:3:4}" == 'tr i' ]]; then
-    case "${site[i+1]:170:1}" in
-      /) folder="${site[i+1]:173:-5}"
-         parentID="${site[i]:65:4}"
-         updateIDpath;;
-      *) folder="${site[i+1]:154:-5}"
-         unset IDpath;;
-    esac
-    ID="${site[i]:24:3}"
-    IDpath+=("${ID//[^0-9]/}")
-    names+=("${folder// /-}")
-    namePath
-    tempFolders+=("temp/$toCreate")
-    dbFolders+=("db/$toCreate")
-    ((i+=4))
-  fi
+  echo curl -# "${jobs[i]}" -H \'Cookie: 6319cb2653680593249bdebaaa628a80="$cookie"\'
+  continue
+  readarray -t site <<< $(curl -# "${urls[i]}" -H 'Cookie: 6319cb2653680593249bdebaaa628a80='"$cookie"'')
+  echo "${site[@]}" > "${docs[i]}"
+  if [[ "${#site[@]}" == 0 ]]; then echo "Error while fetching website"; exit; fi
 
-done
+  for ((i=647; i < "${#site[@]}"-197; i++)); do
 
-echo
-mkdir -p "${tempFolders[@]}" "${dbFolders[@]}"
-filesDownloaded=0
-trap "cleanup" 2 3
+    if [[ "${site[i]:2:2}" == 'tr' ]]; then
+      case "${site[i+1]:91:1}" in
+        _) type=.pdf;;
+        g) type=.png;;
+        a) type=.mp4;;
+        .) type=;;
+        *) type=;;
+      esac
+      [[ "${site[i+1]}" =~ '/index.php/component/easyfolderlistingpro/?view=download&format=raw&data='[a-zA-Z0-9_-]* ]] \
+      && links+=("http://eric.bilinski.fr$BASH_REMATCH")
+      [[ "${site[i+1]}" =~ 'k">'.*'</a><a class="eflpr' ]] \
+      && name="${BASH_REMATCH:3:-19}"
+      parentID="${site[i]:35:3}"
+      updateIDpath
+      namePath
+      paths+=("$toCreate$name$type")
+      ((i+=4))
+    elif [[ "${site[i]:3:4}" == 'tr i' ]]; then
+      case "${site[i+1]:170:1}" in
+        /) folder="${site[i+1]:173:-5}"
+           parentID="${site[i]:65:4}"
+           updateIDpath;;
+        *) folder="${site[i+1]:154:-5}"
+           unset IDpath;;
+      esac
+      ID="${site[i]:24:3}"
+      IDpath+=("${ID//[^0-9]/}")
+      names+=("${folder// /-}")
+      namePath
+      tempFolders+=("temp/$toCreate")
+      dbFolders+=("db/$toCreate")
+      ((i+=4))
+    fi
 
-for ((i=0; i < "${#paths[@]}";i++)); do
-  if [[ -f "db/${paths[i]}" ]]; then
-    echo -e "\e[31mx | ${paths[i]:0:$COLUMNS-5}\e[0m"
-  else
-    echo -e "\e[32m↓ | ${paths[i]:0:$COLUMNS-5} \e[0m"
-    wget "${links[i]}" -q -O "temp/${paths[i]}" &
-    ((filesDownloaded++))
-  fi
-done
-
-echo -e "\n> Mapped ${#paths[@]} files and ${#tempFolders[@]} folders"
-while [[ -n $([[ $(ps -e) =~ 'wget' ]] && echo "${BASH_REMATCH}") ]]; do
-  size=$(du -s temp)
-  size="$((${size//[^0-9]/}/1000))MB"
-  echo -ne "> Downloading : $size\\r"
-  sleep 0.02
-done
-if [[ -z "$size" ]]; then
-  echo '> Website is already up to date'
-else
-  echo "> Downloaded $filesDownloaded files and $size        "
-  readarray -t files <<< $(find temp -type f)
-  for ((i=0; i < "${#files[@]}"; i++)); do
-    mv "${files[i]}" "db/${files[i]:5}" &
   done
-fi
-rm -rf temp
-echo
+
+  echo
+  mkdir -p "${tempFolders[@]}" "${dbFolders[@]}"
+  filesDownloaded=0
+  trap "cleanup" 2 3
+
+  for ((i=0; i < "${#paths[@]}";i++)); do
+    if [[ -f "db/${paths[i]}" ]]; then
+      echo -e "\e[31mx | ${paths[i]:0:$COLUMNS-5}\e[0m"
+    else
+      echo -e "\e[32m↓ | ${paths[i]:0:$COLUMNS-5} \e[0m"
+      wget "${links[i]}" -q -O "temp/${paths[i]}" &
+      ((filesDownloaded++))
+    fi
+  done
+
+  echo -e "\n> Mapped ${#paths[@]} files and ${#tempFolders[@]} folders"
+  while [[ -n $([[ $(ps -e) =~ 'wget' ]] && echo "${BASH_REMATCH}") ]]; do
+    size=$(du -s temp)
+    size="$((${size//[^0-9]/}/1000))MB"
+    echo -ne "> Downloading : $size\\r"
+    sleep 0.02
+  done
+  if [[ -z "$size" ]]; then
+    echo '> Website is already up to date'
+  else
+    echo "> Downloaded $filesDownloaded files and $size        "
+    readarray -t files <<< $(find temp -type f)
+    for ((i=0; i < "${#files[@]}"; i++)); do
+      mv "${files[i]}" "db/${files[i]:5}" &
+    done
+  fi
+  rm -rf temp
+  echo
+
+done
