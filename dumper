@@ -22,19 +22,17 @@ logo() {
 menu() {
 
   logo
-
   case "$1" in
     error) echo -e "\e[31mERROR : $2\e[0m";;
+    success) echo -e "\e[32mSUCCESS : $2\e[0m";;
     info) echo -e "\e[33mINFO : $2\e[0m";;
-    silent) echo "$2"
+    silent) echo -e "$2"
   esac
-
   mkdir -p .data
   rm -f .data/*.new
   touch .data/credentials
   urls=('annales-ts' 'exercices-de-1ere-s-3' 'dns-ts' 'photos-ts-eric-b')
   paths=('annals' 'exercices' 'dns' 'photos')
-
   if [[ $(cat .data/credentials) =~ [a-z0-9] ]]; then
     cookie=$(cat .data/credentials)
   else
@@ -42,12 +40,10 @@ menu() {
     read -p "Cookie : " cookie
     echo "$cookie" > .data/credentials
   fi
-
-  unset dashes check
+  unset dashes check tempFolders finalFolders links
   cols=$(tput cols)
   for ((i=11; i < "$cols"-1; i+=2)); do dashes+='-'; done
   echo -e "\e[34m\n$dashes MAIN MENU $dashes\n\e[0m"
-
   for ((i=0; i < "${#urls[@]}"; i++)); do
     if [[ -s .data/"${paths[i]}" ]]; then
       echo -e "\e[32m[$((i+1))] - ${paths[i]}\e[0m"
@@ -55,7 +51,6 @@ menu() {
       echo -e "\e[33m[$((i+1))] - ${paths[i]}\e[0m"
     fi
   done
-
   echo -e '\e[36m\n[ø|a] - All options\e[0m'
   echo -e "\e[31m[e] - Exit\n\e[0m"
   if [[ -z "$choice" ]]; then
@@ -126,11 +121,9 @@ menu() {
   fi
   if [[ "${usePath[@]}" =~ 'dns' ]]; then
     usedPath='dns'
-    echo 'dns section not supported yet'
   fi
   if [[ "${usePath[@]}" =~ 'photos' ]]; then
     usedPath='photos'
-    echo 'photos section not supported yet'
   fi
 
   downloader
@@ -160,6 +153,7 @@ cleanup() {
 
 parser1() {
 
+  echo "> Parsing $usedPath"
   unset IDpath names
   readarray -t site <<< $(cat .data/"$usedPath")
   for ((i=0; i < "${#site[@]}"; i++)); do
@@ -168,8 +162,11 @@ parser1() {
         _) type=.pdf;;
         g) type=.png;;
         a) type=.mp4;;
+        p) type=.docx;;
+        n) type=.exe;;
         .) type=;;
-        *) type=;;
+        *) echo "${site[i+1]:91:1}" "${site[i+1]}" > .data/errorLog
+           type=;;
       esac
       [[ "${site[i+1]}" =~ '/index.php/component/easyfolderlistingpro/?view=download&format=raw&data='[a-zA-Z0-9_-]* ]] \
       && links+=("http://eric.bilinski.fr$BASH_REMATCH")
@@ -203,33 +200,26 @@ parser1() {
 
 downloader() {
 
+  echo
   mkdir -p "${tempFolders[@]}" "${finalFolders[@]}"
   filesDownloaded=0
-
   for ((i=0; i < "${#paths[@]}"; i++)); do
     if [[ -f "${paths[i]}" ]]; then
       echo -e "\e[31mx | ${paths[i]:0:$COLUMNS-5}\e[0m"
     else
       echo -e "\e[32m↓ | ${paths[i]:0:$COLUMNS-5} \e[0m"
-      wget "${links[i]}" -q -O "temp${paths[i]}" && mv "temp${paths[i]}" "${paths[i]}" && ((filesDownloaded++)) && echo a &
+      wget "${links[i]}" -q -O "temp${paths[i]}" && mv "temp${paths[i]}" "${paths[i]}" && ((filesDownloaded++)) &
     fi
   done
-
   echo -e "\n> Mapped ${#paths[@]} files and ${#finalFolders[@]} folders"
-
   while [[ -n $([[ $(ps -e) =~ 'wget' ]] && echo "${BASH_REMATCH}") ]]; do
-    size=$(du -sc --block-size=1M tempannals/ tempexercices/ tempdns/ tempphotos 2>/dev/null | tail -n 1)
     echo -ne "> Downloading : $filesDownloaded/${#paths[@]}\\r"
     sleep 0.05
   done
-
-  if [[ -z "$size" ]]; then
-    echo '> Already up to date'
-  else
-    echo "> Downloaded $filesDownloaded files and $size        "
-  fi
   rm -rf tempannals/ tempexercices/ tempdns/ tempphotos/
-  echo
+  echo -e "> Downloaded $filesDownloaded files\n"
+  read -p 'Press enter to continue...'
+  menu 'success' "Mapped ${#paths[@]} files\nSUCCESS : Downloaded $filesDownloaded files"
 
 }
 
