@@ -8,5 +8,5 @@ Else, if you are interrested, DM me for the password and instructions.
 
 
 How it works :
-The script will loop through every line of the website, searching for files and folders.
-With the help of folder IDs and files parent IDs, it is able to download and recreate the tree of all documents, only if it isn't already in the downloaded documents folders.
+The script will loop through every line of the website sections that were selected by the user, searching for files and folders.
+With the help of folder IDs and files parent IDs and a fancy optimized algorithm, it is able to download and recreate the tree of all files, only if it isn't already in the local database.
