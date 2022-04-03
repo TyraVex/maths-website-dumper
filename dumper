@@ -184,9 +184,9 @@ parser1() {
 
   for ((i=0; i < "${#paths[@]}";i++)); do
     if [[ -f "$usedPath/${paths[i]}" ]]; then
-      echo -e "\e[31mx | ${paths[i]:0:$COLUMNS-5}\e[0m"
+      validMsg+=("\e[31mx | ${paths[i]:0:$COLUMNS-5}\e[0m")
     else
-      echo -e "\e[32m↓ | ${paths[i]:0:$COLUMNS-5} \e[0m"
+      wrongMsg+=echo -e "\e[32m↓ | ${paths[i]:0:$COLUMNS-5} \e[0m")
       wget "${links[i]}" -q -O "temp/${paths[i]}" &
       ((filesDownloaded++))
     fi
