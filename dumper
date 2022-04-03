@@ -137,68 +137,53 @@ cleanup() {
   exit
 }
 
-worker() {
+parser1() {
 
-  unset paths
+  unset paths links IDpath names tempFolders finalFolders
+  readarray -t site <<< $(cat .data/"$usedPath")
+  for ((i=0; i < "${#site[@]}"; i++)); do
+    if [[ "${site[i]:2:2}" == 'tr' ]]; then
+      case "${site[i+1]:91:1}" in
+        _) type=.pdf;;
+        g) type=.png;;
+        a) type=.mp4;;
+        .) type=;;
+        *) type=;;
+      esac
+      [[ "${site[i+1]}" =~ '/index.php/component/easyfolderlistingpro/?view=download&format=raw&data='[a-zA-Z0-9_-]* ]] \
+      && links+=("http://eric.bilinski.fr$BASH_REMATCH")
+      [[ "${site[i+1]}" =~ 'k">'.*'</a><a class="eflpr' ]] \
+      && name="${BASH_REMATCH:3:-19}"
+      parentID="${site[i]:35:3}"
+      updateIDpath
+      namePath
+      paths+=("$toCreate$name$type")
+      ((i+=4))
+    elif [[ "${site[i]:3:4}" == 'tr i' ]]; then
+      case "${site[i+1]:39:1}" in
+        ' ')
+           folder="${site[i+1]:173:-5}"
+           parentID="${site[i]:65:4}"
+           updateIDpath;;
+        *) folder="${site[i+1]:154:-5}"
+           unset IDpath;;
+      esac
+      ID="${site[i]:24:3}"
+      IDpath+=("${ID//[^0-9]/}")
+      names+=("${folder// /-}")
+      namePath
+      tempFolders+=("temp/$toCreate")
+      finalFolders+=("$usedPath/$toCreate")
+      ((i+=4))
+    fi
+  done
 
-  if [[ "${usePath[@]}" =~ 'annals' ]]; then
-
-    readarray -t site <<< $(cat .data/annals)
-    for ((i=0; i < "${#site[@]}"; i++)); do
-      if [[ "${site[i]:2:2}" == 'tr' ]]; then
-        case "${site[i+1]:91:1}" in
-          _) type=.pdf;;
-          g) type=.png;;
-          a) type=.mp4;;
-          .) type=;;
-          *) type=;;
-        esac
-        [[ "${site[i+1]}" =~ '/index.php/component/easyfolderlistingpro/?view=download&format=raw&data='[a-zA-Z0-9_-]* ]] \
-        && links+=("http://eric.bilinski.fr$BASH_REMATCH")
-        [[ "${site[i+1]}" =~ 'k">'.*'</a><a class="eflpr' ]] \
-        && name="${BASH_REMATCH:3:-19}"
-        parentID="${site[i]:35:3}"
-        updateIDpath
-        namePath
-        paths+=("$toCreate$name$type")
-        ((i+=4))
-      elif [[ "${site[i]:3:4}" == 'tr i' ]]; then
-        case "${site[i+1]:170:1}" in
-          /) folder="${site[i+1]:173:-5}"
-             parentID="${site[i]:65:4}"
-             updateIDpath;;
-          *) folder="${site[i+1]:154:-5}"
-             unset IDpath;;
-        esac
-        ID="${site[i]:24:3}"
-        IDpath+=("${ID//[^0-9]/}")
-        names+=("${folder// /-}")
-        namePath
-        tempFolders+=("temp/$toCreate")
-        annalsFolders+=("annals/$toCreate")
-        ((i+=4))
-      fi
-    done
-  fi
-  if [[ "${usePath[@]}" =~ 'exercices' ]]; then
-    readarray -t site <<< $(cat .data/exercices)
-    echo 'exercices section not supported yet'
-  fi
-  if [[ "${usePath[@]}" =~ 'dns' ]]; then
-    readarray -t site <<< $(cat .data/dns)
-    echo 'dns section not supported yet'
-  fi
-  if [[ "${usePath[@]}" =~ 'photos' ]]; then
-    readarray -t site <<< $(cat .data/photos)
-    echo 'photos section not supported yet'
-  fi
-
-  mkdir -p "${tempFolders[@]}" "${annalsFolders[@]}"
+  mkdir -p "${tempFolders[@]}" "${finalFolders[@]}"
   filesDownloaded=0
   trap "cleanup" 2 3
 
   for ((i=0; i < "${#paths[@]}";i++)); do
-    if [[ -f "annals/${paths[i]}" ]]; then
+    if [[ -f "$usedPath/${paths[i]}" ]]; then
       echo -e "\e[31mx | ${paths[i]:0:$COLUMNS-5}\e[0m"
     else
       echo -e "\e[32m↓ | ${paths[i]:0:$COLUMNS-5} \e[0m"
@@ -207,7 +192,7 @@ worker() {
     fi
   done
 
-  echo -e "\n> Mapped ${#paths[@]} files and ${#tempFolders[@]} folders"
+  echo -e "\n• $usedPath :\n> Mapped ${#paths[@]} files and ${#tempFolders[@]} folders"
 
   while [[ -n $([[ $(ps -e) =~ 'wget' ]] && echo "${BASH_REMATCH}") ]]; do
     size=$(du -s temp)
@@ -217,17 +202,38 @@ worker() {
   done
 
   if [[ -z "$size" ]]; then
-    echo '> Website is already up to date'
+    echo '> Already up to date'
   else
     echo "> Downloaded $filesDownloaded files and $size        "
     readarray -t files <<< $(find temp -type f)
     for ((i=0; i < "${#files[@]}"; i++)); do
-      mv "${files[i]}" "annals/${files[i]:5}" &
+      mv "${files[i]}" "$usedPath/${files[i]:5}" &
     done
   fi
 
   rm -rf temp
   echo
+
+}
+
+worker() {
+
+  if [[ "${usePath[@]}" =~ 'annals' ]]; then
+    usedPath='annals'
+    parser1
+  fi
+  if [[ "${usePath[@]}" =~ 'exercices' ]]; then
+    usedPath='exercices'
+    parser1
+  fi
+  if [[ "${usePath[@]}" =~ 'dns' ]]; then
+    readarray -t site <<< $(cat .data/dns)
+    echo 'dns section not supported yet'
+  fi
+  if [[ "${usePath[@]}" =~ 'photos' ]]; then
+    readarray -t site <<< $(cat .data/photos)
+    echo 'photos section not supported yet'
+  fi
 
 }
 
