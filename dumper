@@ -76,10 +76,9 @@ menu() {
       return;;
   esac
 
-  echo -e 'INFO : If this takes too much time, then the cookie is invalid or expired\n' | fold -sw "$COLUMNS"
-
   for ((i=0; i < "${#useUrl[@]}"; i++)); do
     curl -s "eric.bilinski.fr/index.php/classes/ts/${useUrl[i]}" -H 'Cookie: 6319cb2653680593249bdebaaa628a80='"$cookie"'' -o .data/"${usePath[i]}".new &
+    pid["$i"]="$!"
   done
   jumpUp='\e[A'
   jumpDown=''
@@ -89,24 +88,27 @@ menu() {
   done
   while [[ "${#check[@]}" != "${#useUrl[@]}" ]]; do
     for ((i=0; i < "${#useUrl[@]}"; i++)); do
-      if [[ -s .data/"${usePath[i]}".new ]]; then
+      if ps -p "${pid[i]}" >/dev/null; then
+        echo -e "\e[31mLoading - ${usePath[i]}\e[0m"
+      elif [[ -s ".data/${usePath[i]}.new" ]]; then
         echo -e "\e[32mLoaded! - ${usePath[i]}\e[0m"
         toExec[i]="mv .data/${usePath[i]}.new .data/${usePath[i]}"
         check[i]=true
       else
-        echo -e "\e[31mLoading - ${usePath[i]}\e[0m"
+        tput cnorm
+        menu 'error' 'Cookie is invalid or expired'
+        return
       fi
     done
     sleep 0.05
     echo -e "$jumpUp"
   done
-  echo -e "$jumpDown"
-  wait
   for ((i=0; i < "${#toExec[@]}"; i++)); do
     ${toExec[i]}
   done
+  echo -e "$jumpDown"
   tput cnorm
-  worker
+#  worker
 
 }
 
