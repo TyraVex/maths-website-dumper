@@ -102,7 +102,7 @@ menu() {
       fi
     done
     ((phase=("$phase"+1)%4))
-    sleep 0.05
+    sleep 0.1
     echo -e "$jumpUp"
   done
   for ((i=0; i < "${#toExec[@]}"; i++)); do
@@ -110,7 +110,28 @@ menu() {
   done
   echo -e "$jumpDown"
   tput cnorm
-  worker
+  trap "cleanup" 2 3
+  unset paths
+  filesDownloaded=0
+
+  if [[ "${usePath[@]}" =~ 'annals' ]]; then
+    usedPath='annals'
+    parser1
+  fi
+  if [[ "${usePath[@]}" =~ 'exercices' ]]; then
+    usedPath='exercices'
+    parser1
+  fi
+  if [[ "${usePath[@]}" =~ 'dns' ]]; then
+    readarray -t site <<< $(cat .data/dns)
+    echo 'dns section not supported yet'
+  fi
+  if [[ "${usePath[@]}" =~ 'photos' ]]; then
+    readarray -t site <<< $(cat .data/photos)
+    echo 'photos section not supported yet'
+  fi
+
+  downloader
 
 }
 
@@ -131,15 +152,14 @@ namePath() {
 cleanup() {
   echo -e '\n\nExiting...\n'
   echo 'Since wget was interrupted, files downloaded on this session were removed.' | fold -sw "$COLUMNS"
-  if [[ -z $(find annals -type f) ]]; then rm -rf annals; fi
-  rm -rf temp
+  rm -rf tempannals/ tempexercices/ tempdns/ tempphotos/
   pkill wget
   exit
 }
 
 parser1() {
 
-  unset paths links IDpath names tempFolders finalFolders
+  unset IDpath names
   readarray -t site <<< $(cat .data/"$usedPath")
   for ((i=0; i < "${#site[@]}"; i++)); do
     if [[ "${site[i]:2:2}" == 'tr' ]]; then
@@ -157,7 +177,7 @@ parser1() {
       parentID="${site[i]:35:3}"
       updateIDpath
       namePath
-      paths+=("$toCreate$name$type")
+      paths+=("$usedPath/$toCreate$name$type")
       ((i+=4))
     elif [[ "${site[i]:3:4}" == 'tr i' ]]; then
       case "${site[i+1]:39:1}" in
@@ -172,30 +192,35 @@ parser1() {
       IDpath+=("${ID//[^0-9]/}")
       names+=("${folder// /-}")
       namePath
-      tempFolders+=("temp/$toCreate")
+      tempFolders+=("temp$usedPath/$toCreate")
       finalFolders+=("$usedPath/$toCreate")
       ((i+=4))
     fi
   done
 
+}
+
+downloader() {
+
   mkdir -p "${tempFolders[@]}" "${finalFolders[@]}"
 
   for ((i=0; i < "${#paths[@]}";i++)); do
     if [[ -f "$usedPath/${paths[i]}" ]]; then
-      validMsg+=("\e[31mx | ${paths[i]:0:$COLUMNS-5}\e[0m")
+      echo -e "\e[31mx | ${paths[i]:0:$COLUMNS-5}\e[0m"
     else
-      wrongMsg+=echo -e "\e[32m↓ | ${paths[i]:0:$COLUMNS-5} \e[0m")
-      downloadList=('wget '"${links[i]}"' -q -O temp/'"${paths[i]}"
+      echo -e "\e[32m↓ | ${paths[i]:0:$COLUMNS-5} \e[0m"
+      echo wget "${links[i]}"' -q -O '"${paths[i]}"
     fi
   done
 
-  countMsg+=("\n• $usedPath :\n> Mapped ${#paths[@]} files and ${#tempFolders[@]} folders")
+  echo -e "\n> Mapped ${#paths[@]} files and ${#finalFolders[@]} folders"
+
+  exit
 
   while [[ -n $([[ $(ps -e) =~ 'wget' ]] && echo "${BASH_REMATCH}") ]]; do
-    size=$(du -s temp)
-    size="$((${size//[^0-9]/}/1000))MB"
-    echo -ne "> Downloading : $size\\r"
-    sleep 0.02
+    size=$(du -sc --block-size=1M tempannals/ tempexercices/ tempdns/ tempphotos 2>/dev/null | tail -n 1)
+    echo -ne "> Downloading : $sizeMB\\r"
+    sleep 0.05
   done
 
   if [[ -z "$size" ]]; then
@@ -208,32 +233,8 @@ parser1() {
     done
   fi
 
-  rm -rf temp
+  rm -rf tempannals/ tempexercices/ tempdns/ tempphotos/
   echo
-
-}
-
-worker() {
-
-  trap "cleanup" 2 3
-  filesDownloaded=0
-
-  if [[ "${usePath[@]}" =~ 'annals' ]]; then
-    usedPath='annals'
-    parser1
-  fi
-  if [[ "${usePath[@]}" =~ 'exercices' ]]; then
-    usedPath='exercices'
-    parser1
-  fi
-  if [[ "${usePath[@]}" =~ 'dns' ]]; then
-    readarray -t site <<< $(cat .data/dns)
-    echo 'dns section not supported yet'
-  fi
-  if [[ "${usePath[@]}" =~ 'photos' ]]; then
-    readarray -t site <<< $(cat .data/photos)
-    echo 'photos section not supported yet'
-  fi
 
 }
 
