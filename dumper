@@ -82,6 +82,7 @@ menu() {
   done
   jumpUp='\e[A'
   jumpDown=''
+  spinner=('-' '\\' '|' '/')
   for ((i=0; i < "${#useUrl[@]}"; i++)); do
     jumpUp+='\e[A'
     jumpDown+='\n'
@@ -89,9 +90,9 @@ menu() {
   while [[ "${#check[@]}" != "${#useUrl[@]}" ]]; do
     for ((i=0; i < "${#useUrl[@]}"; i++)); do
       if ps -p "${pid[i]}" >/dev/null; then
-        echo -e "\e[31mLoading - ${usePath[i]}\e[0m"
+        echo -e "\e[31m${spinner[phase]} - ${usePath[i]}\e[0m"
       elif [[ -s ".data/${usePath[i]}.new" ]]; then
-        echo -e "\e[32mLoaded! - ${usePath[i]}\e[0m"
+        echo -e "\e[32m↓ - ${usePath[i]}\e[0m"
         toExec[i]="mv .data/${usePath[i]}.new .data/${usePath[i]}"
         check[i]=true
       else
@@ -100,6 +101,7 @@ menu() {
         return
       fi
     done
+    ((phase=("$phase"+1)%4))
     sleep 0.05
     echo -e "$jumpUp"
   done
