@@ -52,13 +52,13 @@ menu() {
     fi
   done
   echo -e '\e[36m\n[ø|a] - All options\e[0m'
+  echo -e '\e[36m[l.+] - Local mode\n\e[0m'
   echo -e "\e[31m[e] - Exit\n\e[0m"
   if [[ -z "$choice" ]]; then
     read -p "Option : " choice
   fi
-  unset usePth useUrl
+  unset usePth useUrl localMode
   echo
-
   case "$choice" in
     [1-4])
       usePath=("${paths[choice-1]}")
@@ -66,51 +66,61 @@ menu() {
     ''|a)
       usePath+=("${paths[@]}")
       useUrl+=("${urls[@]}");;
+    l[1-4])
+      choice="${choice:1}"
+      usePath=("${paths[choice-1]}")
+      useUrl=("${urls[choice-1]}")
+      localMode=true;;
+    l|la)
+      usePath+=("${paths[@]}")
+      useUrl+=("${urls[@]}")
+      localMode=true;;
     e)exit;;
     *)unset choice
       menu 'error' 'Invalid input'
       return;;
   esac
-
-  for ((i=0; i < "${#useUrl[@]}"; i++)); do
-    curl -s "eric.bilinski.fr/index.php/classes/ts/${useUrl[i]}" -H 'Cookie: 6319cb2653680593249bdebaaa628a80='"$cookie"'' -o .data/"${usePath[i]}".new &
-    pid["$i"]="$!"
-  done
-  trap 'tput cnorm; exit' 2 3
-  tput civis
-  jumpUp='\e[A'
-  jumpDown=''
-  spinner=('-' '\\' '|' '/')
-  for ((i=0; i < "${#useUrl[@]}"; i++)); do
-    jumpUp+='\e[A'
-    jumpDown+='\n'
-  done
-  while [[ "${#check[@]}" != "${#useUrl[@]}" ]]; do
+  if [[ -z "$localMode" ]]; then
     for ((i=0; i < "${#useUrl[@]}"; i++)); do
-      if ps -p "${pid[i]}" >/dev/null; then
-        echo -e "\e[31m${spinner[phase]} - ${usePath[i]}\e[0m"
-      elif [[ -s ".data/${usePath[i]}.new" ]]; then
-        echo -e "\e[32m↓ - ${usePath[i]}\e[0m"
-        toExec[i]="mv .data/${usePath[i]}.new .data/${usePath[i]}"
-        check[i]=true
-      else
-        tput cnorm
-        menu 'error' 'Cookie is invalid or expired'
-        return
-      fi
+      curl -s "eric.bilinski.fr/index.php/classes/ts/${useUrl[i]}" -H 'Cookie: 6319cb2653680593249bdebaaa628a80='"$cookie"'' -o .data/"${usePath[i]}".new &
+      pid["$i"]="$!"
     done
-    ((phase=("$phase"+1)%4))
-    sleep 0.1
-    echo -e "$jumpUp"
-  done
-  for ((i=0; i < "${#toExec[@]}"; i++)); do
-    ${toExec[i]}
-  done
-  echo -e "$jumpDown"
-  tput cnorm
+    trap 'tput cnorm; exit' 2 3
+    tput civis
+    jumpUp='\e[A'
+    jumpDown=''
+    spinner=('-' '\\' '|' '/')
+    for ((i=0; i < "${#useUrl[@]}"; i++)); do
+      jumpUp+='\e[A'
+      jumpDown+='\n'
+    done
+    while [[ "${#check[@]}" != "${#useUrl[@]}" ]]; do
+      for ((i=0; i < "${#useUrl[@]}"; i++)); do
+        if ps -p "${pid[i]}" >/dev/null; then
+          echo -e "\e[31m${spinner[phase]} - ${usePath[i]}\e[0m"
+        elif [[ -s ".data/${usePath[i]}.new" ]]; then
+          echo -e "\e[32m↓ - ${usePath[i]}\e[0m"
+          toExec[i]="mv .data/${usePath[i]}.new .data/${usePath[i]}"
+          check[i]=true
+        else
+          tput cnorm
+          unset choice
+          menu 'error' 'Cookie is invalid or expired'
+          return
+        fi
+      done
+      ((phase=("$phase"+1)%4))
+      sleep 0.1
+      echo -e "$jumpUp"
+    done
+    for ((i=0; i < "${#toExec[@]}"; i++)); do
+      ${toExec[i]}
+    done
+    echo -e "$jumpDown"
+    tput cnorm
+  fi
   trap "cleanup" 2 3
-  unset paths
-
+  unset paths localMode choice
   if [[ "${usePath[@]}" =~ 'annals' ]]; then
     usedPath='annals'
     parser1
@@ -121,11 +131,12 @@ menu() {
   fi
   if [[ "${usePath[@]}" =~ 'dns' ]]; then
     usedPath='dns'
+    parser2
   fi
   if [[ "${usePath[@]}" =~ 'photos' ]]; then
     usedPath='photos'
+    parser2
   fi
-
   downloader
 
 }
@@ -198,30 +209,41 @@ parser1() {
 
 }
 
-downloader() {
+parser2() {
 
-  echo
-  mkdir -p "${tempFolders[@]}" "${finalFolders[@]}"
-  filesDownloaded=0
-  for ((i=0; i < "${#paths[@]}"; i++)); do
-    if [[ -f "${paths[i]}" ]]; then
-      echo -e "\e[31mx | ${paths[i]:0:$COLUMNS-5}\e[0m"
-    else
-      echo -e "\e[32m↓ | ${paths[i]:0:$COLUMNS-5} \e[0m"
-      wget "${links[i]}" -q -O "temp${paths[i]}" && mv "temp${paths[i]}" "${paths[i]}" && ((filesDownloaded++)) &
-    fi
-  done
-  echo -e "\n> Mapped ${#paths[@]} files and ${#finalFolders[@]} folders"
-  while [[ -n $([[ $(ps -e) =~ 'wget' ]] && echo "${BASH_REMATCH}") ]]; do
-    echo -ne "> Downloading : $filesDownloaded/${#paths[@]}\\r"
-    sleep 0.05
-  done
-  rm -rf tempannals/ tempexercices/ tempdns/ tempphotos/
-  echo -e "> Downloaded $filesDownloaded files\n"
-  read -p 'Press enter to continue...'
-  menu 'success' "Mapped ${#paths[@]} files\nSUCCESS : Downloaded $filesDownloaded files"
+  echo "> NOT Parsing $usedPath (unsupported yet)"
 
 }
 
+downloader() {
+
+  if [[ -n "$paths" ]]; then
+    echo
+    mkdir -p "${tempFolders[@]}" "${finalFolders[@]}" 2>/dev/null
+    filesDownloaded=0
+    for ((i=0; i < "${#paths[@]}"; i++)); do
+      if [[ -f "${paths[i]}" ]]; then
+        echo -e "\e[31mx | ${paths[i]:0:$COLUMNS-5}\e[0m"
+      else
+        echo -e "\e[32m↓ | ${paths[i]:0:$COLUMNS-5} \e[0m"
+        wget "${links[i]}" -q -O "temp${paths[i]}" && mv "temp${paths[i]}" "${paths[i]}" && ((filesDownloaded++)) &
+      fi
+    done
+    echo -e "\n> Mapped ${#paths[@]} files and ${#finalFolders[@]} folders"
+    while [[ -n $([[ $(ps -e) =~ 'wget' ]] && echo "${BASH_REMATCH}") ]]; do
+      echo -ne "> Downloading : $filesDownloaded/${#paths[@]}\\r"
+      sleep 0.05
+    done
+    rm -rf tempannals/ tempexercices/ tempdns/ tempphotos/
+    echo -e "> Downloaded $filesDownloaded files\n"
+    read -p 'Press enter to continue...'
+    menu 'success' "Mapped ${#paths[@]} files\nSUCCESS : Downloaded $filesDownloaded files"
+  else
+    menu 'error' 'Empty download list'
+  fi
+
+}
+
+if [[ -n "$1" ]]; then arg=true; fi
 choice="$1"
 menu
