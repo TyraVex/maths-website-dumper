@@ -108,7 +108,7 @@ menu() {
   done
   echo -e "$jumpDown"
   tput cnorm
-#  worker
+  worker
 
 }
 
@@ -129,7 +129,7 @@ namePath() {
 cleanup() {
   echo -e '\n\nExiting...\n'
   echo 'Since wget was interrupted, files downloaded on this session were removed.' | fold -sw "$COLUMNS"
-  if [[ -z $(find db -type f) ]]; then rm -rf db; fi
+  if [[ -z $(find annals -type f) ]]; then rm -rf annals; fi
   rm -rf temp
   pkill wget
   exit
@@ -137,54 +137,68 @@ cleanup() {
 
 worker() {
 
+  unset paths
   for ((k=0; k < "${#useUrl[@]}"; k++)); do
 
-    unset paths
     readarray -t site <<< $(cat .data/"${usePath[k]}")
 
-    for ((i=0; i < "${#site[@]}"; i++)); do
-      if [[ "${site[i]:2:2}" == 'tr' ]]; then
-        case "${site[i+1]:91:1}" in
-          _) type=.pdf;;
-          g) type=.png;;
-          a) type=.mp4;;
-          .) type=;;
-          *) type=;;
-        esac
-        [[ "${site[i+1]}" =~ '/index.php/component/easyfolderlistingpro/?view=download&format=raw&data='[a-zA-Z0-9_-]* ]] \
-        && links+=("http://eric.bilinski.fr$BASH_REMATCH")
-        [[ "${site[i+1]}" =~ 'k">'.*'</a><a class="eflpr' ]] \
-        && name="${BASH_REMATCH:3:-19}"
-        parentID="${site[i]:35:3}"
-        updateIDpath
-        namePath
-        paths+=("$toCreate$name$type")
-        ((i+=4))
-      elif [[ "${site[i]:3:4}" == 'tr i' ]]; then
-        case "${site[i+1]:170:1}" in
-          /) folder="${site[i+1]:173:-5}"
-             parentID="${site[i]:65:4}"
-             updateIDpath;;
-          *) folder="${site[i+1]:154:-5}"
-             unset IDpath;;
-        esac
-        ID="${site[i]:24:3}"
-        IDpath+=("${ID//[^0-9]/}")
-        names+=("${folder// /-}")
-        namePath
-        tempFolders+=("temp/$toCreate")
-        dbFolders+=("db/$toCreate")
-        ((i+=4))
-      fi
+    if [[ "${usePath[k]}" == 'annals' ]]; then
 
-    done
+      for ((i=0; i < "${#site[@]}"; i++)); do
 
-    mkdir -p "${tempFolders[@]}" "${dbFolders[@]}"
+        if [[ "${site[i]:2:2}" == 'tr' ]]; then
+          case "${site[i+1]:91:1}" in
+            _) type=.pdf;;
+            g) type=.png;;
+            a) type=.mp4;;
+            .) type=;;
+            *) type=;;
+          esac
+          [[ "${site[i+1]}" =~ '/index.php/component/easyfolderlistingpro/?view=download&format=raw&data='[a-zA-Z0-9_-]* ]] \
+          && links+=("http://eric.bilinski.fr$BASH_REMATCH")
+          [[ "${site[i+1]}" =~ 'k">'.*'</a><a class="eflpr' ]] \
+          && name="${BASH_REMATCH:3:-19}"
+          parentID="${site[i]:35:3}"
+          updateIDpath
+          namePath
+          paths+=("$toCreate$name$type")
+          ((i+=4))
+        elif [[ "${site[i]:3:4}" == 'tr i' ]]; then
+          case "${site[i+1]:170:1}" in
+            /) folder="${site[i+1]:173:-5}"
+               parentID="${site[i]:65:4}"
+               updateIDpath;;
+            *) folder="${site[i+1]:154:-5}"
+               unset IDpath;;
+          esac
+          ID="${site[i]:24:3}"
+          IDpath+=("${ID//[^0-9]/}")
+          names+=("${folder// /-}")
+          namePath
+          tempFolders+=("temp/$toCreate")
+          annalsFolders+=("annals/$toCreate")
+          ((i+=4))
+        fi
+
+      done
+
+    elif [[ "${usePath[k]}" == 'exercices' ]]; then
+      echo 'exercices section not supported yet'
+      continue
+    elif [[ "${usePath[k]}" == 'dns' ]]; then
+      echo 'dns section not supported yet'
+      continue
+    elif [[ "${usePath[k]}" == 'photos' ]]; then
+      echo 'photos section not supported yet'
+      continue
+    fi
+
+    mkdir -p "${tempFolders[@]}" "${annalsFolders[@]}"
     filesDownloaded=0
     trap "cleanup" 2 3
 
     for ((i=0; i < "${#paths[@]}";i++)); do
-      if [[ -f "db/${paths[i]}" ]]; then
+      if [[ -f "annals/${paths[i]}" ]]; then
         echo -e "\e[31mx | ${paths[i]:0:$COLUMNS-5}\e[0m"
       else
         echo -e "\e[32m↓ | ${paths[i]:0:$COLUMNS-5} \e[0m"
@@ -208,7 +222,7 @@ worker() {
       echo "> Downloaded $filesDownloaded files and $size        "
       readarray -t files <<< $(find temp -type f)
       for ((i=0; i < "${#files[@]}"; i++)); do
-        mv "${files[i]}" "db/${files[i]:5}" &
+        mv "${files[i]}" "annals/${files[i]:5}" &
       done
     fi
 
