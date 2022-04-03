@@ -179,20 +179,17 @@ parser1() {
   done
 
   mkdir -p "${tempFolders[@]}" "${finalFolders[@]}"
-  filesDownloaded=0
-  trap "cleanup" 2 3
 
   for ((i=0; i < "${#paths[@]}";i++)); do
     if [[ -f "$usedPath/${paths[i]}" ]]; then
       validMsg+=("\e[31mx | ${paths[i]:0:$COLUMNS-5}\e[0m")
     else
       wrongMsg+=echo -e "\e[32m↓ | ${paths[i]:0:$COLUMNS-5} \e[0m")
-      wget "${links[i]}" -q -O "temp/${paths[i]}" &
-      ((filesDownloaded++))
+      downloadList=('wget '"${links[i]}"' -q -O temp/'"${paths[i]}"
     fi
   done
 
-  echo -e "\n• $usedPath :\n> Mapped ${#paths[@]} files and ${#tempFolders[@]} folders"
+  countMsg+=("\n• $usedPath :\n> Mapped ${#paths[@]} files and ${#tempFolders[@]} folders")
 
   while [[ -n $([[ $(ps -e) =~ 'wget' ]] && echo "${BASH_REMATCH}") ]]; do
     size=$(du -s temp)
@@ -217,6 +214,9 @@ parser1() {
 }
 
 worker() {
+
+  trap "cleanup" 2 3
+  filesDownloaded=0
 
   if [[ "${usePath[@]}" =~ 'annals' ]]; then
     usedPath='annals'
