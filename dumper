@@ -53,6 +53,7 @@ menu() {
   done
   echo -e '\e[36m\n[ø|a] - All options\e[0m'
   echo -e '\e[36m[l.+] - Local mode\n\e[0m'
+  echo -e '\e[33m[c] - Edit cookie\e[0m'
   echo -e "\e[31m[e] - Exit\n\e[0m"
   if [[ -z "$choice" ]]; then
     read -p "Option : " choice
@@ -76,6 +77,16 @@ menu() {
       useUrl+=("${urls[@]}")
       localMode=true;;
     e)exit;;
+    c)unset choice
+      echo 'For going back, send nothing'
+      read -p "Cookie : " cookie
+      if [[ -n "$cookie" ]]; then
+        echo "$cookie" > .data/credentials
+        menu 'success' 'Cookie edited'
+      else
+        menu 'info' 'Operation cancelled'
+      fi
+      return;;
     *)unset choice
       menu 'error' 'Invalid input'
       return;;
