@@ -40,7 +40,7 @@ menu() {
   if [[ $(cat .data/credentials) =~ [a-z0-9] ]]; then
     cookie=$(cat .data/credentials)
   else
-    echo -e 'No cookies found\n'
+    echo -e '\nNo cookies found\n'
     read -p "Cookie : " cookie
     echo "$cookie" > .data/credentials
   fi
