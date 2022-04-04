@@ -46,9 +46,9 @@ menu() {
   echo -e "\e[34m\n$dashes MAIN MENU $dashes\n\e[0m"
   for ((i=0; i < "${#urls[@]}"; i++)); do
     if [[ -s .data/"${paths[i]}" ]]; then
-      echo -e "\e[32m[$((i+1))] - ${paths[i]}\e[0m"
+      echo -e "\e[32m[$((i+1))] - ${paths[i]^}\e[0m"
     else
-      echo -e "\e[33m[$((i+1))] - ${paths[i]}\e[0m"
+      echo -e "\e[33m[$((i+1))] - ${paths[i]^}\e[0m"
     fi
   done
   echo -e '\e[36m\n[ø|a] - All options\e[0m'
@@ -232,17 +232,19 @@ downloader() {
     echo
     mkdir -p "${tempFolders[@]}" "${finalFolders[@]}" 2>/dev/null
     filesDownloaded=0
+    totalFiles=0
     for ((i=0; i < "${#paths[@]}"; i++)); do
       if [[ -f "${paths[i]}" ]]; then
         echo -e "\e[31mx | ${paths[i]:0:$COLUMNS-5}\e[0m"
       else
         echo -e "\e[32m↓ | ${paths[i]:0:$COLUMNS-5} \e[0m"
-        wget "${links[i]}" -q -O "temp${paths[i]}" && mv "temp${paths[i]}" "${paths[i]}" && ((filesDownloaded++)) &
+        wget "${links[i]}" -q -O "temp${paths[i]}" && mv "temp${paths[i]}" "${paths[i]}" && ((filesDownloaded+=1)) &
+        ((totalFiles++))
       fi
     done
     echo -e "\n> Mapped ${#paths[@]} files and ${#finalFolders[@]} folders"
     while [[ -n $([[ $(ps -e) =~ 'wget' ]] && echo "${BASH_REMATCH}") ]]; do
-      echo -ne "> Downloading : $filesDownloaded/${#paths[@]}\\r"
+      echo -ne "> Downloading : $filesDownloaded/$totalFiles\\r"
       sleep 0.05
     done
     rm -rf tempannals/ tempexercices/ tempdns/ tempphotos/
