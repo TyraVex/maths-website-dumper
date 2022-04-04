@@ -137,6 +137,8 @@ menu() {
     tput cnorm
   fi
   trap "cleanup" 2 3
+  MBsize=0
+  KBsize=0
   unset paths localMode choice
   if [[ "${usePath[@]}" =~ 'annals' ]]; then
     usedPath='annals'
@@ -174,9 +176,17 @@ namePath() {
   done
 }
 
+calcSize() {
+  if [[ "${tempsize: -2}" == 'MB' ]]; then
+    MBsize+="+${tempsize:0:-3}"
+  elif [[ "${tempsize: -2}" == 'KB' ]]; then
+    KBsize+="+${tempsize:0:-3}"
+  fi
+}
+
 cleanup() {
   echo -e '\n\nExiting...\n'
-  rm -rf tempannals/ tempexercices/ tempdns/ tempphotos/
+  rm -rf tempannals/ tempexercices/ tempdns/ tempphotos/ .data/temp
   pkill curl
   exit
 }
@@ -206,6 +216,10 @@ parser1() {
       updateIDpath
       namePath
       paths+=("$usedPath/$toCreate$name$type")
+      tempsize="${site[i+2]:6:-5}"
+      if [[ ! -f "$usedPath/$toCreate$name$type" ]]; then
+        calcSize
+      fi
       ((i+=4))
     elif [[ "${site[i]:3:4}" == 'tr i' ]]; then
       case "${site[i+1]:39:1}" in
@@ -247,6 +261,10 @@ parser2() {
       [[ "${site[i]}" =~ 'k">'.*'</a><a class="eflpr' ]] \
       && name="${BASH_REMATCH:3:-19}"
       paths+=("$usedPath/$name$type")
+      tempsize="${site[i+1]:6:-5}"
+      if [[ ! -f "$usedPath/$name$type" ]]; then
+        calcSize
+      fi
     fi
   done
 
@@ -255,36 +273,63 @@ parser2() {
 downloader() {
 
   if [[ -n "$paths" ]]; then
+
     echo
+    unset toDownload check
     mkdir -p "${finalFolders[@]}" 2>/dev/null
-    filesDownloaded=0
     totalFiles=0
+    totalSize=$(bc <<< "scale=2;($MBsize)+(($KBsize)/1000)")
+    totalSize=$(printf '%0.0f' "$totalSize")
+    originalSize=$(du -s --block-size=1M)
+    originalSize="${originalSize//[^0-9]/}"
+    ((numFolders="${#finalFolders[@]}"/2))
+
     for ((i=0; i < "${#paths[@]}"; i++)); do
       if [[ -f "${paths[i]}" ]]; then
         echo -e "\e[31mx | ${paths[i]:0:$COLUMNS-5}\e[0m"
-      else
-        echo -e "\e[32m↓ | ${paths[i]:0:$COLUMNS-5} \e[0m"
-        curl -s "${links[i]}" -o "temp${paths[i]}" && mv "temp${paths[i]}" "${paths[i]}" && ((filesDownloaded+=1)) &
-        ((totalFiles++))
       fi
     done
-    echo -e "\n> Mapped ${#paths[@]} files and ${#finalFolders[@]} folders"
-    while [[ -n $([[ $(ps -e) =~ 'curl' ]] && echo "${BASH_REMATCH}") ]]; do
-      echo -ne "> Downloading : $filesDownloaded/$totalFiles\\r"
-      sleep 0.05
+    for ((i=0; i < "${#paths[@]}"; i++)); do
+      if [[ ! -f "${paths[i]}" ]]; then
+        echo -e "\e[32m↓ | ${paths[i]:0:$COLUMNS-5} \e[0m"
+        ((totalFiles++))
+        check=true
+      fi
     done
-    rm -rf tempannals/ tempexercices/ tempdns/ tempphotos/
-    echo -e "> Downloaded $filesDownloaded files\n"
+    download &
+    while [[ ! -f .data/temp && -n "$check" ]]; do sleep 0.01; done
+
+    echo -e "\n> Mapped ${#paths[@]} files and $numFolders folders"
+
+    while [[ -n $([[ $(ps -e | grep curl) =~ 'curl' ]] && echo "${BASH_REMATCH}") ]]; do
+      size=$(du -s --block-size=1M 2>/dev/null)
+      size="$((${size//[^0-9]/}-$originalSize))"
+      echo -ne "> Download : $size/$totalSize MB\\r"
+      sleep 0.01
+    done
+
+#    if [[ -z "$size" ]]; then size=0; fi
+    echo -e "> Downloaded $totalSize/$totalSize MB      \n\\r"
+    rm -rf tempannals/ tempexercices/ tempdns/ tempphotos/ .data/temp
+
     if [[ -z "$arg" ]]; then
       read -p 'Press enter to continue...'
+      menu 'success' "Mapped ${#paths[@]} files\nSUCCESS : Downloaded $totalFiles files and $totalSize MB"
     fi
-    if [[ -z "$arg" ]]; then
-      menu 'success' "Mapped ${#paths[@]} files\nSUCCESS : Downloaded $filesDownloaded files"
-    fi
+
   else
     menu 'error' 'Empty download list'
   fi
 
+}
+
+download() {
+  for ((i=0; i < "${#paths[@]}"; i++)); do
+    if [[ ! -f "${paths[i]}" ]]; then
+      curl -s "${links[i]}" -o "temp${paths[i]}" && mv "temp${paths[i]}" "${paths[i]}" 2>/dev/null &
+      touch .data/temp
+    fi
+  done
 }
 
 if [[ -n "$1" ]]; then arg=true; fi
