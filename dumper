@@ -278,7 +278,9 @@ downloader() {
     if [[ -z "$arg" ]]; then
       read -p 'Press enter to continue...'
     fi
-    menu 'success' "Mapped ${#paths[@]} files\nSUCCESS : Downloaded $filesDownloaded files"
+    if [[ -z "$arg" ]]; then
+      menu 'success' "Mapped ${#paths[@]} files\nSUCCESS : Downloaded $filesDownloaded files"
+    fi
   else
     menu 'error' 'Empty download list'
   fi
