@@ -177,7 +177,7 @@ namePath() {
 cleanup() {
   echo -e '\n\nExiting...\n'
   rm -rf tempannals/ tempexercices/ tempdns/ tempphotos/
-  pkill wget
+  pkill curl
   exit
 }
 
@@ -264,12 +264,12 @@ downloader() {
         echo -e "\e[31mx | ${paths[i]:0:$COLUMNS-5}\e[0m"
       else
         echo -e "\e[32m↓ | ${paths[i]:0:$COLUMNS-5} \e[0m"
-        wget "${links[i]}" -q -O "temp${paths[i]}" && mv "temp${paths[i]}" "${paths[i]}" && ((filesDownloaded+=1)) &
+        curl -s "${links[i]}" -o "temp${paths[i]}" && mv "temp${paths[i]}" "${paths[i]}" && ((filesDownloaded+=1)) &
         ((totalFiles++))
       fi
     done
     echo -e "\n> Mapped ${#paths[@]} files and ${#finalFolders[@]} folders"
-    while [[ -n $([[ $(ps -e) =~ 'wget' ]] && echo "${BASH_REMATCH}") ]]; do
+    while [[ -n $([[ $(ps -e) =~ 'curl' ]] && echo "${BASH_REMATCH}") ]]; do
       echo -ne "> Downloading : $filesDownloaded/$totalFiles\\r"
       sleep 0.05
     done
