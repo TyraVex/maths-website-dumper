@@ -21,12 +21,16 @@ logo() {
 
 menu() {
 
-  logo
+  if [[ -z "$arg" ]]; then logo; fi
   case "$1" in
-    error) echo -e "\e[31mERROR : $2\e[0m";;
-    success) echo -e "\e[32mSUCCESS : $2\e[0m";;
-    info) echo -e "\e[33mINFO : $2\e[0m";;
+    error) echo -e "\e[31mERROR : $2\e[0m"
+           if [[ -n "$arg" ]]; then echo; exit; fi;;
+    success) echo -e "\e[32mSUCCESS : $2\e[0m"
+             if [[ -n "$arg" ]]; then echo; exit; fi;;
+    info) echo -e "\e[33mINFO : $2\e[0m"
+          if [[ -n "$arg" ]]; then echo; exit; fi;;
     silent) echo -e "$2"
+            if [[ -n "$arg" ]]; then echo; exit; fi;;
   esac
   mkdir -p .data
   rm -f .data/*.new
@@ -42,24 +46,24 @@ menu() {
   fi
   unset dashes check tempFolders finalFolders links
   cols=$(tput cols)
-  for ((i=11; i < "$cols"-1; i+=2)); do dashes+='-'; done
-  echo -e "\e[34m\n$dashes MAIN MENU $dashes\n\e[0m"
-  for ((i=0; i < "${#urls[@]}"; i++)); do
-    if [[ -s .data/"${paths[i]}" ]]; then
-      echo -e "\e[32m[$((i+1))] - ${paths[i]^}\e[0m"
-    else
-      echo -e "\e[33m[$((i+1))] - ${paths[i]^}\e[0m"
-    fi
-  done
-  echo -e '\e[36m\n[ø|a] - All options\e[0m'
-  echo -e '\e[36m[l.+] - Local mode\n\e[0m'
-  echo -e '\e[33m[c] - Edit cookie\e[0m'
-  echo -e "\e[31m[e] - Exit\n\e[0m"
-  if [[ -z "$choice" ]]; then
+  if [[ -z "$arg" ]]; then
+    for ((i=11; i < "$cols"-1; i+=2)); do dashes+='-'; done
+    echo -e "\e[34m\n$dashes MAIN MENU $dashes\n\e[0m"
+    for ((i=0; i < "${#urls[@]}"; i++)); do
+      if [[ -s .data/"${paths[i]}" ]]; then
+        echo -e "\e[32m[$((i+1))] - ${paths[i]^}\e[0m"
+      else
+        echo -e "\e[33m[$((i+1))] - ${paths[i]^}\e[0m"
+      fi
+    done
+    echo -e '\e[36m\n[ø|a] - All options\e[0m'
+    echo -e '\e[36m[l.+] - Local mode\n\e[0m'
+    echo -e '\e[33m[c] - Edit cookie\e[0m'
+    echo -e "\e[31m[e] - Exit\n\e[0m"
     read -p "Option : " choice
   fi
-  unset usePth useUrl localMode
   echo
+  unset usePth useUrl localMode
   case "$choice" in
     [1-4])
       usePath=("${paths[choice-1]}")
@@ -80,6 +84,7 @@ menu() {
     c)unset choice
       echo 'For going back, send nothing'
       read -p "Cookie : " cookie
+      echo
       if [[ -n "$cookie" ]]; then
         echo "$cookie" > .data/credentials
         menu 'success' 'Cookie edited'
@@ -249,7 +254,9 @@ downloader() {
     done
     rm -rf tempannals/ tempexercices/ tempdns/ tempphotos/
     echo -e "> Downloaded $filesDownloaded files\n"
-    read -p 'Press enter to continue...'
+    if [[ -z "$arg" ]]; then
+      read -p 'Press enter to continue...'
+    fi
     menu 'success' "Mapped ${#paths[@]} files\nSUCCESS : Downloaded $filesDownloaded files"
   else
     menu 'error' 'Empty download list'
